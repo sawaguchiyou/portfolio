@@ -10947,11 +10947,32 @@ html {
   font-size: 1.25rem;
 }
 .masthead .masthead-avatar {
-  margin-right: 10rem;
-  width: 5rem;
+  width: 8rem;
 }
+.masthead:hover img {
+  transition: transform 1s;
+  transform: rotate(10deg);
+}
+.masthead img {
+  transition: transform 1s;
+  transform: rotateY(0deg);
+}
+
 .top-button {
   width: 2rem;
+}
+
+.name {
+  animation: name 3s;
+}
+
+@keyframes name {
+  0% {
+    transform: translateY(-300px);
+  }
+  120% {
+    transform: translateY(0);
+  }
 }
 
 @media (min-width: 992px) {
