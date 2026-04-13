@@ -139,8 +139,7 @@ function Surface({t,onClickHere,showBtn,rodOut,lineY}){
     h('g',{fill:'white',opacity:.2},
       h('ellipse',{cx:110,cy:305,rx:14,ry:2.5}),h('ellipse',{cx:195,cy:322,rx:9,ry:2}),
       h('ellipse',{cx:490,cy:308,rx:16,ry:2.5}),h('ellipse',{cx:575,cy:318,rx:11,ry:2})),
-    h('path',{d:'M0,378 Q50,368 100,378 Q150,388 200,378 Q250,368 300,378 Q350,388 400,378 Q450,368 500,378 Q550,388 600,378 Q650,368 680,378 L680,420 L0,420 Z',fill:'#1a3f60'}),
-    h('rect',{x:0,y:412,width:680,height:8,fill:'#b8975a'})
+    h('path',{d:'M0,378 Q50,368 100,378 Q150,388 200,378 Q250,368 300,378 Q350,388 400,378 Q450,368 500,378 Q550,388 600,378 Q650,368 680,378 L680,420 L0,420 Z',fill:'#1a3f60'})
   );
 }
 
@@ -211,7 +210,7 @@ function App(){
   const dive=()=>{
     setPhase('diving');
     const sv={x:0,y:0,w:W,h:H};
-    const ev={x:-15,y:218,w:W*.88,h:H*.88};
+    const ev={x:0,y:218,w:W*.88,h:H*.88};
     const dur=2600;let s=null;
     const step=ts=>{
       if(!s)s=ts;
