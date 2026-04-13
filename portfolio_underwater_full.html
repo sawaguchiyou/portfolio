@@ -114,9 +114,11 @@
             h('ellipse',{cx:420,cy:110,rx:35,ry:14}),h('ellipse',{cx:394,cy:116,rx:22,ry:11}),h('ellipse',{cx:450,cy:116,rx:22,ry:11})),
           h(HelloCloud,{y:cy}),
           showBtn&&h('g',{style:{transform:`translateY(${fy}px)`,cursor:'pointer'},onClick:onClickHere},
-            h('rect',{x:270,y:200,width:140,height:32,rx:16,fill:'#2c4a6e',opacity:.85}),
-            h('text',{x:340,y:221,textAnchor:'middle',fontFamily:"'Helvetica Neue',sans-serif",
-              fontSize:14,fontWeight:600,fill:'white',letterSpacing:1.5},'START')),
+      h('rect',{x:287,y:202,width:126,height:28,rx:14,fill:'url(#startButtonGlass)'}),
+      h('rect',{x:287,y:202,width:126,height:28,rx:14,fill:'none',stroke:'rgba(220,242,255,.34)',strokeWidth:.9}),
+      h('ellipse',{cx:350,cy:209,rx:48,ry:6,fill:'url(#startButtonGloss)',opacity:.72}),
+            h('text',{x:350,y:221,textAnchor:'middle',fontFamily:"'Helvetica Neue',sans-serif",
+              fontSize:12,fontWeight:700,fill:'rgba(255,255,255,.95)',letterSpacing:1.2},'START')),
           h('rect',{x:0,y:255,width:680,height:165,fill:'#2a5f8f'}),
           h('path',{d:'M0,265 Q34,257 68,265 Q102,273 136,265 Q170,257 204,265 Q238,273 272,265 Q306,257 340,265 Q374,273 408,265 Q442,257 476,265 Q510,273 544,265 Q578,257 612,265 Q646,273 680,265 L680,280 L0,280 Z',fill:'#3370a8',opacity:.9}),
           h('path',{d:'M-68,272 Q34,264 68,272 Q102,280 136,272 Q170,264 204,272 Q238,280 272,272 Q306,264 340,272 Q374,280 408,272 Q442,264 476,272 Q510,280 544,272 Q578,264 612,272 Q646,280 680,272 Q714,280 748,272 L748,285 L-68,285 Z',
@@ -438,6 +440,15 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
           h('stop',{offset:'0%','stop-color':'#f6dfae','stop-opacity':'0.55'}),
           h('stop',{offset:'50%','stop-color':'#f0d4a0','stop-opacity':'0.26'}),
           h('stop',{offset:'100%','stop-color':'#f0d4a0','stop-opacity':'0'})
+        ),
+        h('linearGradient',{id:'startButtonGlass',x1:'0%',y1:'0%',x2:'0%',y2:'100%'},
+          h('stop',{offset:'0%','stop-color':'rgba(255,255,255,0.16)'}),
+          h('stop',{offset:'45%','stop-color':'rgba(210,232,248,0.08)'}),
+          h('stop',{offset:'100%','stop-color':'rgba(130,170,200,0.045)'})
+        ),
+        h('radialGradient',{id:'startButtonGloss',cx:'50%',cy:'50%',r:'50%'},
+          h('stop',{offset:'0%','stop-color':'rgba(255,255,255,0.34)'}),
+          h('stop',{offset:'100%','stop-color':'rgba(255,255,255,0)'})
         )
       ),
       isUW
