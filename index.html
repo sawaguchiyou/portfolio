@@ -10,40 +10,27 @@
             body {
                 margin: 0;
                 padding: 0;
-                width: 100%;
-                height: 100%;
+                width: 100vw;
+                height: 100vh;
                 overflow: hidden;
                 background: #0a1628;
             }
 
-            .hero-underwater {
+            .underwater-frame {
+                position: fixed;
+                inset: 0;
                 width: 100vw;
                 height: 100vh;
-            }
-
-            .underwater-frame-wrap {
-                width: 100%;
-                height: 100%;
-                background: #0a1628;
-            }
-
-            .underwater-frame {
-                width: 100%;
-                height: 100%;
                 border: 0;
                 display: block;
             }
         </style>
     </head>
     <body>
-        <main class="hero-underwater" aria-label="海アニメーション">
-            <div class="underwater-frame-wrap">
-                <iframe
-                    class="underwater-frame"
-                    src="portfolio_underwater_full.html"
-                    title="Portfolio Underwater Scene"
-                    loading="lazy"></iframe>
-            </div>
-        </main>
+        <iframe
+            class="underwater-frame"
+            src="portfolio_underwater_full.html"
+            title="Portfolio Underwater Scene"
+            loading="lazy"></iframe>
     </body>
 </html>
