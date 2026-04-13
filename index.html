@@ -29,8 +29,17 @@
     <body>
         <iframe
             class="underwater-frame"
+            id="underwaterFrame"
             src="portfolio_underwater_full.html?v=20260413-2"
             title="Portfolio Underwater Scene"
             loading="lazy"></iframe>
+        <script>
+            const params = new URLSearchParams(window.location.search);
+            const scene = params.get("scene");
+            const frame = document.getElementById("underwaterFrame");
+            if (frame && scene) {
+                frame.src = `portfolio_underwater_full.html?v=20260413-2&scene=${encodeURIComponent(scene)}`;
+            }
+        </script>
     </body>
 </html>
