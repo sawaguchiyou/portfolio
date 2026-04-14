@@ -21,6 +21,165 @@
       const startUnderwater=qs.get('scene')==='underwater';
       const easeInOut=t=>t<.5?2*t*t:-1+(4-2*t)*t;
       const easeOut=t=>1-Math.pow(1-t,3);
+      const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+      const lerp=(a,b,t)=>a+(b-a)*t;
+      const hexToRgb=(hex)=>{
+        const n=parseInt(hex.replace('#',''),16);
+        return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+      };
+      const rgbToHex=(r,g,b)=>`#${[r,g,b].map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2,'0')).join('')}`;
+      const mixHex=(a,b,t)=>{
+        const ca=hexToRgb(a),cb=hexToRgb(b);
+        return rgbToHex(lerp(ca.r,cb.r,t),lerp(ca.g,cb.g,t),lerp(ca.b,cb.b,t));
+      };
+      const getMoonFromClock=(now)=>{
+        const hour=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
+        const nightStart=18.5;
+        const nightEnd=5;
+        const nightLen=(24-nightStart)+nightEnd;
+        const progress=hour>=nightStart
+          ?(hour-nightStart)/nightLen
+          :(hour+24-nightStart)/nightLen;
+        const p=clamp(progress,0,1);
+        const arc=Math.sin(Math.PI*p);
+        return {p,x:90+500*p,y:166-86*arc};
+      };
+      const STAR_FIELD=[
+        {x:62,y:30,r:1.7},{x:95,y:52,r:1.1},{x:132,y:38,r:1.2},{x:188,y:26,r:1.4},{x:238,y:48,r:1.2},
+        {x:286,y:30,r:1.5},{x:334,y:44,r:1.1},{x:382,y:28,r:1.6},{x:430,y:46,r:1.2},{x:476,y:32,r:1.3},
+        {x:520,y:48,r:1.1},{x:564,y:30,r:1.5},{x:606,y:44,r:1.2},{x:642,y:34,r:1.1}
+      ];
+
+      function getSkyState(now,sunrise,sunset){
+        const dawnTop='#223a63', dawnBottom='#d48767';
+        const dayTop='#7eb9ef', dayBottom='#f2cc8d';
+        const duskTop='#1f365f', duskBottom='#e17a56';
+        const nightTop='#041326', nightBottom='#0a223a';
+        if(!sunrise||!sunset||isNaN(sunrise)||isNaN(sunset)){
+          const pseudoSunrise=new Date(now);
+          pseudoSunrise.setHours(6,0,0,0);
+          const pseudoSunset=new Date(now);
+          pseudoSunset.setHours(18,0,0,0);
+          const psr=pseudoSunrise.getTime();
+          const pss=pseudoSunset.getTime();
+          const pDayLen=pss-psr;
+          const pTwi=Math.max(40*60*1000,pDayLen*0.14);
+          const t=now.getTime();
+          const pNightStart=t<psr?(pss-24*60*60*1000):pss;
+          const pNightEnd=t<psr?psr:(psr+24*60*60*1000);
+          const pNightLen=Math.max(1,pNightEnd-pNightStart);
+          const pNightP=clamp((t-pNightStart)/pNightLen,0,1);
+          const pMoon=getMoonFromClock(now);
+          if(t>=psr&&t<=pss){
+            const p=(t-psr)/pDayLen;
+            const altitude=Math.sin(Math.PI*p);
+            const top=p<.5?mixHex(dawnTop,dayTop,p*2):mixHex(dayTop,duskTop,(p-.5)*2);
+            const bottom=p<.5?mixHex(dawnBottom,dayBottom,p*2):mixHex(dayBottom,duskBottom,(p-.5)*2);
+            const mid=mixHex(top,bottom,0.46);
+            return {
+              isNight:false,top,mid,bottom,
+              sunX:120+440*p,sunY:232-150*altitude,
+              sunOpacity:0.52+0.2*altitude,haloOpacity:0.26+0.24*altitude,
+              isMorning:p<0.23,isEvening:p>0.74,isDeepNight:false
+            };
+          }
+          const beforeDawn=t<psr;
+          const baseNight={
+            isNight:true,
+            top:nightTop,
+            mid:mixHex(nightTop,nightBottom,.45),
+            bottom:nightBottom,
+            moonX:pMoon.x,
+            moonY:pMoon.y,
+            moonOpacity:.85,
+            starOpacity:.8,
+            isMorning:false,
+            isEvening:false,
+            isDeepNight:(pMoon.p>0.16&&pMoon.p<0.42)
+          };
+          if(beforeDawn&&t>=psr-pTwi){
+            const p=(t-(psr-pTwi))/pTwi;
+            return {
+              ...baseNight,
+              top:mixHex(nightTop,dawnTop,p),
+              mid:mixHex(mixHex(nightTop,nightBottom,.45),mixHex(dawnTop,dawnBottom,.45),p),
+              bottom:mixHex(nightBottom,dawnBottom,p),
+              moonOpacity:0.85*(1-p),
+              starOpacity:0.8*(1-p)
+            };
+          }
+          if(!beforeDawn&&t<=pss+pTwi){
+            const p=(t-pss)/pTwi;
+            return {
+              ...baseNight,
+              top:mixHex(duskTop,nightTop,p),
+              mid:mixHex(mixHex(duskTop,duskBottom,.45),mixHex(nightTop,nightBottom,.45),p),
+              bottom:mixHex(duskBottom,nightBottom,p),
+              moonOpacity:0.85*p,
+              starOpacity:0.8*p
+            };
+          }
+          return baseNight;
+        }
+        const dayLen=sunset-sunrise;
+        const twi=Math.max(40*60*1000,dayLen*0.14);
+        const t=now.getTime();
+        const nightStart=t<sunrise?(sunset-24*60*60*1000):sunset;
+        const nightEnd=t<sunrise?sunrise:(sunrise+24*60*60*1000);
+        const nightLen=Math.max(1,nightEnd-nightStart);
+        const nightP=clamp((t-nightStart)/nightLen,0,1);
+        const moon=getMoonFromClock(now);
+        if(t>=sunrise&&t<=sunset){
+          const p=(t-sunrise)/dayLen;
+          const altitude=Math.sin(Math.PI*p); // 0~1
+          const top = p<.5?mixHex(dawnTop,dayTop,p*2):mixHex(dayTop,duskTop,(p-.5)*2);
+          const bottom = p<.5?mixHex(dawnBottom,dayBottom,p*2):mixHex(dayBottom,duskBottom,(p-.5)*2);
+          const mid = mixHex(top,bottom,0.46);
+          return {
+            isNight:false, top, mid, bottom,
+            sunX:120+440*p, sunY:252-186*altitude,
+            sunOpacity:0.52+0.2*altitude, haloOpacity:0.26+0.24*altitude,
+            isMorning:p<0.23, isEvening:p>0.74, isDeepNight:false
+          };
+        }
+        const beforeDawn=t<sunrise;
+        const baseNight={
+          isNight:true,
+          top:nightTop,
+          mid:mixHex(nightTop,nightBottom,.45),
+          bottom:nightBottom,
+          moonX:moon.x,
+          moonY:moon.y,
+          moonOpacity:.85,
+          starOpacity:.8,
+          isMorning:false,
+          isEvening:false,
+          isDeepNight:(moon.p>0.16&&moon.p<0.42)
+        };
+        if(beforeDawn&&t>=sunrise-twi){
+          const p=(t-(sunrise-twi))/twi;
+          return {
+            ...baseNight,
+            top:mixHex(nightTop,dawnTop,p),
+            mid:mixHex(mixHex(nightTop,nightBottom,.45),mixHex(dawnTop,dawnBottom,.45),p),
+            bottom:mixHex(nightBottom,dawnBottom,p),
+            moonOpacity:0.85*(1-p),
+            starOpacity:0.8*(1-p)
+          };
+        }
+        if(!beforeDawn&&t<=sunset+twi){
+          const p=(t-sunset)/twi;
+          return {
+            ...baseNight,
+            top:mixHex(duskTop,nightTop,p),
+            mid:mixHex(mixHex(duskTop,duskBottom,.45),mixHex(nightTop,nightBottom,.45),p),
+            bottom:mixHex(duskBottom,nightBottom,p),
+            moonOpacity:0.85*p,
+            starOpacity:0.8*p
+          };
+        }
+        return baseNight;
+      }
 
       const FISH=[
         {id:1,label:"Works",   color:"#f97316",shine:"#fcd34d",size:1.3,bx:210,by:215,dir:1, spd:.38},
@@ -92,26 +251,69 @@
           ...tops.map(([cx,cy,rx,ry],i)=>h('ellipse',{key:i,cx,cy,rx,ry,fill:'white'})),
           ...bottoms.map(([cx,cy,rx,ry],i)=>h('ellipse',{key:`b${i}`,cx,cy,rx,ry,fill:'white'})),
           h('text',{x:226,y:48,textAnchor:'middle',dominantBaseline:'middle',fontFamily:"'Courier New',monospace",
-            fontSize:13,fontWeight:700,fill:'#4a6580',letterSpacing:1.1},'YU_SAWAGUCHI is PORTFOLIO')
+            fontSize:13,fontWeight:700,fill:'#4a6580',letterSpacing:1.1},'YU_SAWAGUCHI NO PORTFOLIO')
         );
       }
 
-      function Surface({t,onClickHere,showBtn,rodOut,lineY}){
+function Bird({bird,t}){
+  if(!bird||!bird.active) return null;
+  const p=Math.min(Math.max((t-bird.startTime)/bird.duration,0),1);
+  const x=bird.startX+(bird.endX-bird.startX)*p;
+  const wing=Math.sin(t*7+bird.seed)*4;
+  const flip=bird.dir==='left'?-1:1;
+  return h('g',{style:{transform:`translate(${x}px,${bird.y}px) scale(${flip*bird.scale},${bird.scale})`},opacity:0.9},
+    h('path',{d:`M-14,0 Q-6,${-8-wing} 2,0`,fill:'none',stroke:'rgba(20,40,60,.68)',strokeWidth:2,strokeLinecap:'round'}),
+    h('path',{d:`M2,0 Q10,${-8-wing} 18,0`,fill:'none',stroke:'rgba(20,40,60,.68)',strokeWidth:2,strokeLinecap:'round'})
+  );
+}
+
+function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState}){
         const by=Math.sin(t/3.5)*-3+Math.sin(t/1.75)*1;
         const cy=Math.sin(t/7)*-5+Math.sin(t/3.5)*-3+52;
         const fy=Math.sin(t/2.8)*-3+Math.sin(t/1.4)*-2;
         const wx=Math.sin(t*0.9)*34;
+        const morningBoost=skyState.isMorning?1:0;
+        const seaTop=morningBoost?'#3e8ec9':'#2a5f8f';
+        const seaWave='#3370a8';
+        const seaWaveMoving=morningBoost?'#5ba4d9':'#4080bc';
         const rtx=228,rty=252+by;
         const ley=rty+lineY;
+        const shootingStars=skyState.isNight&&skyState.isDeepNight
+          ?[
+              {sx:540,sy:38,len:56,sp:0.15,ph:0.6},
+              {sx:405,sy:62,len:46,sp:0.13,ph:2.2}
+            ]
+          :[];
         return h('g',null,
     h('rect',{x:0,y:0,width:680,height:260,fill:'url(#sunsetSkyGradient)'}),
-    h('rect',{x:0,y:0,width:680,height:260,fill:'url(#sunHaloGradient)'}),
-    h('circle',{cx:580,cy:218,r:18,fill:'#e8c87a',opacity:.6}),
+    !skyState.isNight&&h('rect',{x:0,y:0,width:680,height:260,fill:'url(#sunHaloGradient)'}),
+    !skyState.isNight&&h('circle',{cx:skyState.sunX,cy:skyState.sunY,r:18,fill:'#e8c87a',opacity:skyState.sunOpacity}),
+    skyState.isNight&&h('g',null,
+      h('mask',{id:'moonCrescentMask'},
+        h('rect',{x:0,y:0,width:680,height:260,fill:'white'}),
+        h('circle',{cx:skyState.moonX+6,cy:skyState.moonY-3,r:13,fill:'black'})
+      ),
+      h('circle',{cx:skyState.moonX,cy:skyState.moonY,r:16,fill:'rgba(245,238,209,.95)',opacity:skyState.moonOpacity,mask:'url(#moonCrescentMask)'}),
+      ...STAR_FIELD.map((s,i)=>h('circle',{key:`star-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.92)',opacity:skyState.starOpacity*(0.75+0.25*Math.sin(t*1.5+i))})),
+      ...shootingStars.map((m,i)=>{
+        const cyc=(t*m.sp+m.ph)%1;
+        const active=cyc>0.08&&cyc<0.24;
+        const p=active?(cyc-0.08)/0.16:0;
+        const mx=m.sx-190*p;
+        const my=m.sy+95*p;
+        const op=active?(1-Math.abs(0.5-p)/0.5)*0.85:0;
+        return h('g',{key:`meteor-${i}`,opacity:op},
+          h('line',{x1:mx,y1:my,x2:mx+m.len,y2:my-m.len*0.48,stroke:'rgba(245,248,255,.92)',strokeWidth:1.4,strokeLinecap:'round'}),
+          h('line',{x1:mx+2,y1:my+1,x2:mx+26,y2:my-11,stroke:'rgba(245,248,255,.45)',strokeWidth:3.2,strokeLinecap:'round'})
+        );
+      })
+    ),
           // 背景雲（左側グループは表示しない）
-          h('g',{fill:'#cfd8dc',opacity:.5},
+          h('g',{fill:'#c0c0c0'},
             h('ellipse',{cx:500,cy:60,rx:44,ry:18}),h('ellipse',{cx:468,cy:66,rx:28,ry:15}),h('ellipse',{cx:535,cy:66,rx:28,ry:15})),
-          h('g',{fill:'#b0bec5',opacity:.4},
+          h('g',{fill:'#b0bec5'},
             h('ellipse',{cx:420,cy:110,rx:35,ry:14}),h('ellipse',{cx:394,cy:116,rx:22,ry:11}),h('ellipse',{cx:450,cy:116,rx:22,ry:11})),
+          ...birds.map((bird)=>h(Bird,{key:bird.id,bird,t})),
           h(HelloCloud,{y:cy}),
           showBtn&&h('g',{style:{transform:`translateY(${fy}px)`,cursor:'pointer'},onClick:onClickHere},
       h('rect',{x:287,y:202,width:126,height:28,rx:14,fill:'url(#startButtonGlass)'}),
@@ -119,10 +321,10 @@
       h('ellipse',{cx:350,cy:209,rx:48,ry:6,fill:'url(#startButtonGloss)',opacity:.72}),
             h('text',{x:350,y:221,textAnchor:'middle',fontFamily:"'Helvetica Neue',sans-serif",
               fontSize:12,fontWeight:700,fill:'rgba(255,255,255,.95)',letterSpacing:1.2},'START')),
-          h('rect',{x:0,y:255,width:680,height:165,fill:'#2a5f8f'}),
+          h('rect',{x:0,y:255,width:680,height:165,fill:seaTop}),
           h('path',{d:'M0,265 Q34,257 68,265 Q102,273 136,265 Q170,257 204,265 Q238,273 272,265 Q306,257 340,265 Q374,273 408,265 Q442,257 476,265 Q510,273 544,265 Q578,257 612,265 Q646,273 680,265 L680,280 L0,280 Z',fill:'#3370a8',opacity:.9}),
           h('path',{d:'M-68,272 Q34,264 68,272 Q102,280 136,272 Q170,264 204,272 Q238,280 272,272 Q306,264 340,272 Q374,280 408,272 Q442,264 476,272 Q510,280 544,272 Q578,264 612,272 Q646,280 680,272 Q714,280 748,272 L748,285 L-68,285 Z',
-            fill:'#4080bc',opacity:.5,style:{transform:`translateX(${wx}px)`}}),
+            fill:seaWaveMoving,opacity:.5,style:{transform:`translateX(${wx}px)`}}),
           // Boat group
           h('g',{style:{transform:`translateY(${by}px)`}},
             h('g',{clipPath:'url(#aboveDeck)'},
@@ -233,7 +435,13 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         const [returnFade,setReturnFade]=useState(0);
         const [pageFade,setPageFade]=useState(0);
         const [isNavigating,setIsNavigating]=useState(false);
+        const [birds,setBirds]=useState([]);
+        const [sunInfo,setSunInfo]=useState({sunrise:null,sunset:null});
+        const [nowDate,setNowDate]=useState(new Date());
+        const skyState=getSkyState(nowDate,sunInfo.sunrise,sunInfo.sunset);
         const reelRaf=useRef(null);
+        const birdSpawnTimeout=useRef(null);
+        const birdFinishTimeout=useRef(null);
 
         useEffect(()=>{
           const loop=ts=>{
@@ -244,6 +452,72 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
           raf.current=requestAnimationFrame(loop);
           return()=>cancelAnimationFrame(raf.current);
         },[]);
+
+        useEffect(()=>{
+          let cancelled=false;
+          const fallback={lat:35.681236,lng:139.767125};
+          const fetchSun=async(lat,lng)=>{
+            try{
+              const res=await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&formatted=0`);
+              const data=await res.json();
+              if(!data||!data.results) return;
+              const sunrise=new Date(data.results.sunrise).getTime();
+              const sunset=new Date(data.results.sunset).getTime();
+              if(!cancelled) setSunInfo({sunrise,sunset});
+            }catch(_e){}
+          };
+          // まずフォールバック地点で即時取得して、初期描画の空状態を安定させる
+          fetchSun(fallback.lat,fallback.lng);
+          if(navigator.geolocation){
+            navigator.geolocation.getCurrentPosition(
+              p=>fetchSun(p.coords.latitude,p.coords.longitude),
+              ()=>{},
+              {enableHighAccuracy:false,timeout:7000,maximumAge:3600000}
+            );
+          }
+          const timer=setInterval(()=>setNowDate(new Date()),30000);
+          return()=>{cancelled=true;clearInterval(timer);};
+        },[]);
+
+        useEffect(()=>{
+          const clearBirdTimers=()=>{
+            if(birdSpawnTimeout.current){ clearTimeout(birdSpawnTimeout.current); birdSpawnTimeout.current=null; }
+            if(birdFinishTimeout.current){ clearTimeout(birdFinishTimeout.current); birdFinishTimeout.current=null; }
+          };
+          if(phase!=='surface'){
+            clearBirdTimers();
+            setBirds([]);
+            return clearBirdTimers;
+          }
+
+          const scheduleBird=()=>{
+            const eveningBoost=!!skyState.isEvening;
+            const waitMs=eveningBoost?(2800+Math.random()*2200):(5000+Math.random()*5000);
+            birdSpawnTimeout.current=setTimeout(()=>{
+              const startTime=(performance.now()-(t0.current||0))/1000;
+              const count=eveningBoost?(Math.random()<0.72?2:3):(Math.random()<0.4?2:1);
+              const makeBird=(idx)=> {
+                const dir=Math.random()<0.5?'right':'left';
+                const baseY=34+Math.random()*55;
+                const y=baseY+(idx===1?(Math.random()<0.5?-10:10):0);
+                const duration=7.5+Math.random()*3;
+                const startX=dir==='right'?-50:730;
+                const endX=dir==='right'?730:-50;
+                const scale=0.55+Math.random()*0.45; // 最大サイズは現状(1.0)
+                return {id:`bird-${Date.now()}-${idx}`,active:true,startTime,duration,dir,startX,endX,y,seed:Math.random()*10,scale};
+              };
+              const nextBirds=Array.from({length:count},(_,i)=>makeBird(i));
+              setBirds(nextBirds);
+              const maxDuration=Math.max(...nextBirds.map(b=>b.duration));
+              birdFinishTimeout.current=setTimeout(()=>{
+                setBirds([]);
+                scheduleBird();
+              },maxDuration*1000+180);
+            },waitMs);
+          };
+          scheduleBird();
+          return clearBirdTimers;
+        },[phase,skyState.isEvening]);
 
         useEffect(()=>{
           if(!startUnderwater) return;
@@ -415,6 +689,8 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         useEffect(()=>{
           return()=>{
             if(reelRaf.current) cancelAnimationFrame(reelRaf.current);
+            if(birdSpawnTimeout.current) clearTimeout(birdSpawnTimeout.current);
+            if(birdFinishTimeout.current) clearTimeout(birdFinishTimeout.current);
           };
         },[]);
 
@@ -427,18 +703,13 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
       h('defs',null,
         h('clipPath',{id:'aboveDeck'},h('rect',{x:255,y:0,width:190,height:304})),
         h('linearGradient',{id:'sunsetSkyGradient',x1:'0%',y1:'0%',x2:'0%',y2:'100%'},
-          h('stop',{offset:'0%','stop-color':'#0b1a34'}),
-          h('stop',{offset:'16%','stop-color':'#163053'}),
-          h('stop',{offset:'34%','stop-color':'#2f5074'}),
-          h('stop',{offset:'52%','stop-color':'#5f7690'}),
-          h('stop',{offset:'68%','stop-color':'#8f93a0'}),
-          h('stop',{offset:'82%','stop-color':'#b08c84'}),
-          h('stop',{offset:'92%','stop-color':'#c97b64'}),
-          h('stop',{offset:'100%','stop-color':'#dd6e4c'})
+          h('stop',{offset:'0%','stop-color':skyState.top}),
+          h('stop',{offset:'56%','stop-color':skyState.mid}),
+          h('stop',{offset:'100%','stop-color':skyState.bottom})
         ),
-        h('radialGradient',{id:'sunHaloGradient',gradientUnits:'userSpaceOnUse',cx:'580',cy:'220',r:'150'},
-          h('stop',{offset:'0%','stop-color':'#f6dfae','stop-opacity':'0.55'}),
-          h('stop',{offset:'50%','stop-color':'#f0d4a0','stop-opacity':'0.26'}),
+        h('radialGradient',{id:'sunHaloGradient',gradientUnits:'userSpaceOnUse',cx:String(skyState.sunX??580),cy:String(skyState.sunY??218),r:'170'},
+          h('stop',{offset:'0%','stop-color':'#f6dfae','stop-opacity':String(skyState.haloOpacity||0)}),
+          h('stop',{offset:'55%','stop-color':'#f0d4a0','stop-opacity':String((skyState.haloOpacity||0)*0.46)}),
           h('stop',{offset:'100%','stop-color':'#f0d4a0','stop-opacity':'0'})
         ),
         h('linearGradient',{id:'startButtonGlass',x1:'0%',y1:'0%',x2:'0%',y2:'100%'},
@@ -455,12 +726,12 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         ?h(Underwater,{t:time,fishVisible,onFish:handleFish,hookY,caughtFish,isReeling})
         :isReturning
           ?h('g',null,
-              h(Surface,{t:time,onClickHere:handleClick,showBtn:false,rodOut:false,lineY:0}),
+              h(Surface,{t:time,onClickHere:handleClick,showBtn:false,rodOut:false,lineY:0,birds,skyState}),
               h('g',{style:{opacity:1-returnFade}},
                 h(Underwater,{t:time,fishVisible,onFish:handleFish,hookY,caughtFish,isReeling})
               )
             )
-          :h(Surface,{t:time,onClickHere:handleClick,showBtn:phase==='surface',rodOut,lineY})
+          :h(Surface,{t:time,onClickHere:handleClick,showBtn:phase==='surface',rodOut,lineY,birds,skyState})
           ),
     isUW&&fishVisible&&!isReeling&&h('button',{
       onClick:handleRecast,
