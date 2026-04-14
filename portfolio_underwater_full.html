@@ -44,10 +44,28 @@
         const arc=Math.sin(Math.PI*p);
         return {p,x:90+500*p,y:166-86*arc};
       };
+      const getSunFromClock=(now)=>{
+        const hour=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
+        const dayStart=5;
+        const dayEnd=19;
+        const p=clamp((hour-dayStart)/(dayEnd-dayStart),0,1);
+        const altitude=Math.sin(Math.PI*p);
+        const isDay=(hour>=dayStart&&hour<dayEnd);
+        return {p,x:120+440*p,y:252-186*altitude,altitude,isDay};
+      };
       const STAR_FIELD=[
         {x:62,y:30,r:1.7},{x:95,y:52,r:1.1},{x:132,y:38,r:1.2},{x:188,y:26,r:1.4},{x:238,y:48,r:1.2},
         {x:286,y:30,r:1.5},{x:334,y:44,r:1.1},{x:382,y:28,r:1.6},{x:430,y:46,r:1.2},{x:476,y:32,r:1.3},
         {x:520,y:48,r:1.1},{x:564,y:30,r:1.5},{x:606,y:44,r:1.2},{x:642,y:34,r:1.1}
+      ];
+      const STAR_FIELD_MID=[
+        {x:48,y:78,r:1.0},{x:108,y:96,r:0.95},{x:170,y:86,r:0.88},{x:228,y:104,r:0.92},{x:288,y:90,r:0.9},
+        {x:346,y:108,r:0.86},{x:406,y:82,r:0.93},{x:468,y:102,r:0.9},{x:528,y:88,r:0.87},{x:590,y:106,r:0.84},
+        {x:648,y:92,r:0.82}
+      ];
+      const STAR_FIELD_LOW=[
+        {x:72,y:128,r:0.76},{x:136,y:142,r:0.72},{x:198,y:136,r:0.7},{x:262,y:148,r:0.68},{x:324,y:132,r:0.66},
+        {x:388,y:146,r:0.64},{x:450,y:134,r:0.62},{x:514,y:150,r:0.6},{x:576,y:138,r:0.58},{x:640,y:152,r:0.56}
       ];
 
       function getSkyState(now,sunrise,sunset){
@@ -70,16 +88,16 @@
           const pNightLen=Math.max(1,pNightEnd-pNightStart);
           const pNightP=clamp((t-pNightStart)/pNightLen,0,1);
           const pMoon=getMoonFromClock(now);
-          if(t>=psr&&t<=pss){
-            const p=(t-psr)/pDayLen;
-            const altitude=Math.sin(Math.PI*p);
+          const sun=getSunFromClock(now);
+          if(sun.isDay){
+            const p=sun.p;
             const top=p<.5?mixHex(dawnTop,dayTop,p*2):mixHex(dayTop,duskTop,(p-.5)*2);
             const bottom=p<.5?mixHex(dawnBottom,dayBottom,p*2):mixHex(dayBottom,duskBottom,(p-.5)*2);
             const mid=mixHex(top,bottom,0.46);
             return {
               isNight:false,top,mid,bottom,
-              sunX:120+440*p,sunY:232-150*altitude,
-              sunOpacity:0.52+0.2*altitude,haloOpacity:0.26+0.24*altitude,
+              sunX:sun.x,sunY:sun.y,
+              sunOpacity:0.52+0.2*sun.altitude,haloOpacity:0.26+0.24*sun.altitude,
               isMorning:p<0.23,isEvening:p>0.74,isDeepNight:false
             };
           }
@@ -129,16 +147,16 @@
         const nightLen=Math.max(1,nightEnd-nightStart);
         const nightP=clamp((t-nightStart)/nightLen,0,1);
         const moon=getMoonFromClock(now);
-        if(t>=sunrise&&t<=sunset){
-          const p=(t-sunrise)/dayLen;
-          const altitude=Math.sin(Math.PI*p); // 0~1
+        const sun=getSunFromClock(now);
+        if(sun.isDay){
+          const p=sun.p;
           const top = p<.5?mixHex(dawnTop,dayTop,p*2):mixHex(dayTop,duskTop,(p-.5)*2);
           const bottom = p<.5?mixHex(dawnBottom,dayBottom,p*2):mixHex(dayBottom,duskBottom,(p-.5)*2);
           const mid = mixHex(top,bottom,0.46);
           return {
             isNight:false, top, mid, bottom,
-            sunX:120+440*p, sunY:252-186*altitude,
-            sunOpacity:0.52+0.2*altitude, haloOpacity:0.26+0.24*altitude,
+            sunX:sun.x, sunY:sun.y,
+            sunOpacity:0.52+0.2*sun.altitude, haloOpacity:0.26+0.24*sun.altitude,
             isMorning:p<0.23, isEvening:p>0.74, isDeepNight:false
           };
         }
@@ -241,7 +259,7 @@
         }));
       }
 
-      function HelloCloud({y}){
+      function HelloCloud({y,textVisible}){
         const tops=[[58,42,22,16],[92,33,26,18],[128,30,28,20],[166,28,30,21],[206,28,30,21],
           [246,29,29,20],[286,30,29,20],[326,30,30,21],[364,32,28,19],[398,36,24,17]];
         const bottoms=[[72,66,20,10],[112,68,24,11],[154,69,22,10],[196,70,24,11],[240,70,24,11],
@@ -251,7 +269,8 @@
           ...tops.map(([cx,cy,rx,ry],i)=>h('ellipse',{key:i,cx,cy,rx,ry,fill:'white'})),
           ...bottoms.map(([cx,cy,rx,ry],i)=>h('ellipse',{key:`b${i}`,cx,cy,rx,ry,fill:'white'})),
           h('text',{x:226,y:48,textAnchor:'middle',dominantBaseline:'middle',fontFamily:"'Courier New',monospace",
-            fontSize:13,fontWeight:700,fill:'#4a6580',letterSpacing:1.1},'YU_SAWAGUCHI NO PORTFOLIO')
+            fontSize:13,fontWeight:700,fill:'#4a6580',letterSpacing:1.1,
+            style:{opacity:textVisible?1:0,transition:'opacity .45s ease'}},'YU_SAWAGUCHI NO PORTFOLIO')
         );
       }
 
@@ -267,7 +286,7 @@ function Bird({bird,t}){
   );
 }
 
-function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState}){
+function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState,uiVisible}){
         const by=Math.sin(t/3.5)*-3+Math.sin(t/1.75)*1;
         const cy=Math.sin(t/7)*-5+Math.sin(t/3.5)*-3+52;
         const fy=Math.sin(t/2.8)*-3+Math.sin(t/1.4)*-2;
@@ -295,6 +314,8 @@ function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState}){
       ),
       h('circle',{cx:skyState.moonX,cy:skyState.moonY,r:16,fill:'rgba(245,238,209,.95)',opacity:skyState.moonOpacity,mask:'url(#moonCrescentMask)'}),
       ...STAR_FIELD.map((s,i)=>h('circle',{key:`star-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.92)',opacity:skyState.starOpacity*(0.75+0.25*Math.sin(t*1.5+i))})),
+      ...STAR_FIELD_MID.map((s,i)=>h('circle',{key:`star-mid-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.9)',opacity:skyState.starOpacity*(0.58+0.2*Math.sin(t*1.2+i*0.7))})),
+      ...STAR_FIELD_LOW.map((s,i)=>h('circle',{key:`star-low-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.86)',opacity:skyState.starOpacity*(0.42+0.16*Math.sin(t*1.1+i*0.65))})),
       ...shootingStars.map((m,i)=>{
         const cyc=(t*m.sp+m.ph)%1;
         const active=cyc>0.08&&cyc<0.24;
@@ -314,8 +335,8 @@ function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState}){
           h('g',{fill:'#b0bec5'},
             h('ellipse',{cx:420,cy:110,rx:35,ry:14}),h('ellipse',{cx:394,cy:116,rx:22,ry:11}),h('ellipse',{cx:450,cy:116,rx:22,ry:11})),
           ...birds.map((bird)=>h(Bird,{key:bird.id,bird,t})),
-          h(HelloCloud,{y:cy}),
-          showBtn&&h('g',{style:{transform:`translateY(${fy}px)`,cursor:'pointer'},onClick:onClickHere},
+          h(HelloCloud,{y:cy,textVisible:uiVisible}),
+          showBtn&&h('g',{style:{transform:`translateY(${fy}px)`,cursor:'pointer',opacity:uiVisible?1:0,transition:'opacity .45s ease',pointerEvents:uiVisible?'auto':'none'},onClick:onClickHere},
       h('rect',{x:287,y:202,width:126,height:28,rx:14,fill:'url(#startButtonGlass)'}),
       h('rect',{x:287,y:202,width:126,height:28,rx:14,fill:'none',stroke:'rgba(220,242,255,.34)',strokeWidth:.9}),
       h('ellipse',{cx:350,cy:209,rx:48,ry:6,fill:'url(#startButtonGloss)',opacity:.72}),
@@ -438,10 +459,106 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         const [birds,setBirds]=useState([]);
         const [sunInfo,setSunInfo]=useState({sunrise:null,sunset:null});
         const [nowDate,setNowDate]=useState(new Date());
+        const [audioReady,setAudioReady]=useState(false);
+        const [isMuted,setIsMuted]=useState(false);
+        const [uiVisible,setUiVisible]=useState(true);
         const skyState=getSkyState(nowDate,sunInfo.sunrise,sunInfo.sunset);
         const reelRaf=useRef(null);
         const birdSpawnTimeout=useRef(null);
         const birdFinishTimeout=useRef(null);
+        const surfaceAudioRef=useRef(null);
+        const underwaterAudioRef=useRef(null);
+        const castAudioRef=useRef(null);
+        const audioFadeRafRef=useRef(null);
+        const bgmBaseVolumeRef=useRef(0.42);
+        const uiHideTimerRef=useRef(null);
+
+        useEffect(()=>{
+          const surfaceAudio=new Audio('assets/bgm/waves.mp3');
+          const underwaterAudio=new Audio('assets/bgm/underwater.mp3');
+          const castAudio=new Audio('assets/bgm/cast.mp3');
+          surfaceAudio.loop=true;
+          underwaterAudio.loop=true;
+          surfaceAudio.preload='auto';
+          underwaterAudio.preload='auto';
+          castAudio.preload='auto';
+          surfaceAudio.volume=0;
+          underwaterAudio.volume=0;
+          castAudio.volume=0.20;
+          surfaceAudioRef.current=surfaceAudio;
+          underwaterAudioRef.current=underwaterAudio;
+          castAudioRef.current=castAudio;
+          return()=>{
+            if(audioFadeRafRef.current) cancelAnimationFrame(audioFadeRafRef.current);
+            surfaceAudio.pause();
+            underwaterAudio.pause();
+            castAudio.pause();
+            surfaceAudio.src='';
+            underwaterAudio.src='';
+            castAudio.src='';
+          };
+        },[]);
+
+        useEffect(()=>{
+          const unlockAudio=()=>{
+            const surfaceAudio=surfaceAudioRef.current;
+            const underwaterAudio=underwaterAudioRef.current;
+            if(!surfaceAudio||!underwaterAudio||audioReady) return;
+            Promise.allSettled([surfaceAudio.play(),underwaterAudio.play()]).then(()=>{
+              setAudioReady(true);
+            });
+          };
+          window.addEventListener('pointerdown',unlockAudio,{once:true});
+          window.addEventListener('keydown',unlockAudio,{once:true});
+          return()=>{
+            window.removeEventListener('pointerdown',unlockAudio);
+            window.removeEventListener('keydown',unlockAudio);
+          };
+        },[audioReady]);
+
+        useEffect(()=>{
+          if(!audioReady) return;
+          const surfaceAudio=surfaceAudioRef.current;
+          const underwaterAudio=underwaterAudioRef.current;
+          if(!surfaceAudio||!underwaterAudio) return;
+          if(audioFadeRafRef.current) cancelAnimationFrame(audioFadeRafRef.current);
+          const targetTrack=phase==='underwater'?'underwater':'surface';
+          const targetVol=isMuted?0:bgmBaseVolumeRef.current;
+          const startSurface=surfaceAudio.volume;
+          const startUnderwater=underwaterAudio.volume;
+          const endSurface=targetTrack==='surface'?targetVol:0;
+          const endUnderwater=targetTrack==='underwater'?targetVol:0;
+          if(surfaceAudio.paused) surfaceAudio.play().catch(()=>{});
+          if(underwaterAudio.paused) underwaterAudio.play().catch(()=>{});
+          const dur=1000;
+          let tStart=null;
+          const step=(ts)=>{
+            if(!tStart) tStart=ts;
+            const p=Math.min((ts-tStart)/dur,1);
+            const ep=easeInOut(p);
+            surfaceAudio.volume=startSurface+(endSurface-startSurface)*ep;
+            underwaterAudio.volume=startUnderwater+(endUnderwater-startUnderwater)*ep;
+            if(p<1){
+              audioFadeRafRef.current=requestAnimationFrame(step);
+            }
+          };
+          audioFadeRafRef.current=requestAnimationFrame(step);
+        },[phase,isMuted,audioReady]);
+
+        useEffect(()=>{
+          const resetUiTimer=()=>{
+            if(uiHideTimerRef.current) clearTimeout(uiHideTimerRef.current);
+            setUiVisible(true);
+            uiHideTimerRef.current=setTimeout(()=>setUiVisible(false),5000);
+          };
+          resetUiTimer();
+          const events=['mousemove','mousedown','touchstart','keydown'];
+          events.forEach((evt)=>window.addEventListener(evt,resetUiTimer,{passive:true}));
+          return()=>{
+            if(uiHideTimerRef.current) clearTimeout(uiHideTimerRef.current);
+            events.forEach((evt)=>window.removeEventListener(evt,resetUiTimer));
+          };
+        },[]);
 
         useEffect(()=>{
           const loop=ts=>{
@@ -538,6 +655,21 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
 
         const handleClick=useCallback(()=>{
           if(phase!=='surface')return;
+          if(!isMuted){
+            const castAudio=castAudioRef.current;
+            if(castAudio){
+              castAudio.currentTime=0;
+              castAudio.play().catch(()=>{});
+            }
+          }
+          if(!audioReady){
+            const surfaceAudio=surfaceAudioRef.current;
+            const underwaterAudio=underwaterAudioRef.current;
+            Promise.allSettled([
+              surfaceAudio?surfaceAudio.play():Promise.resolve(),
+              underwaterAudio?underwaterAudio.play():Promise.resolve()
+            ]).then(()=>setAudioReady(true));
+          }
           setPhase('casting');
           setRodOut(true);
           let s=null;
@@ -550,7 +682,7 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
             else{setTimeout(dive,500);}
           };
           requestAnimationFrame(step);
-        },[phase]);
+        },[phase,audioReady,isMuted]);
 
         const dive=()=>{
           setPhase('diving');
@@ -726,12 +858,12 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         ?h(Underwater,{t:time,fishVisible,onFish:handleFish,hookY,caughtFish,isReeling})
         :isReturning
           ?h('g',null,
-              h(Surface,{t:time,onClickHere:handleClick,showBtn:false,rodOut:false,lineY:0,birds,skyState}),
+              h(Surface,{t:time,onClickHere:handleClick,showBtn:false,rodOut:false,lineY:0,birds,skyState,uiVisible}),
               h('g',{style:{opacity:1-returnFade}},
                 h(Underwater,{t:time,fishVisible,onFish:handleFish,hookY,caughtFish,isReeling})
               )
             )
-          :h(Surface,{t:time,onClickHere:handleClick,showBtn:phase==='surface',rodOut,lineY,birds,skyState})
+          :h(Surface,{t:time,onClickHere:handleClick,showBtn:phase==='surface',rodOut,lineY,birds,skyState,uiVisible})
           ),
     isUW&&fishVisible&&!isReeling&&h('button',{
       onClick:handleRecast,
@@ -742,6 +874,26 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
         padding:'8px 14px',fontSize:'12px',fontWeight:700,letterSpacing:'.03em'
       }
     },'もう一度キャストする'),
+          h('button',{
+            onClick:()=>setIsMuted(v=>!v),
+            title:isMuted?'サウンドON':'サウンドOFF',
+            'aria-label':isMuted?'サウンドON':'サウンドOFF',
+            style:{
+              position:'absolute',top:'12px',right:'12px',zIndex:25,cursor:'pointer',
+              background:'rgba(6,20,40,.16)',color:'rgba(219,234,254,.88)',
+              border:'1px solid rgba(120,210,255,.16)',borderRadius:'999px',
+              padding:'6px 8px',lineHeight:1,
+              opacity:uiVisible?1:0,transition:'opacity .45s ease',pointerEvents:uiVisible?'auto':'none'
+            }
+          },
+            h('img',{
+              src:isMuted?'assets/ei-silence.svg':'assets/ei-sound.svg',
+              alt:'',
+              width:16,
+              height:16,
+              style:{display:'block',opacity:.92,filter:'brightness(0) invert(1)'}
+            })
+          ),
           toast&&h('div',{style:{
             position:'absolute',bottom:'14px',left:'50%',transform:'translateX(-50%)',
             background:'rgba(7,20,40,.92)',color:'white',padding:'8px 22px',borderRadius:'20px',
@@ -749,7 +901,7 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
             fontFamily:"Georgia,serif",pointerEvents:'none',whiteSpace:'nowrap'
           }},`→ ${toast}`),
           isUW&&fishVisible&&h('div',{style:{
-            position:'absolute',top:'10px',right:'14px',color:'rgba(140,210,255,.5)',
+            position:'absolute',right:'14px',bottom:'16px',color:'rgba(140,210,255,.5)',
             fontSize:'11px',letterSpacing:'.08em',fontFamily:'monospace'
           }},'🐟 魚をクリックしてみて！'),
           h('div',{style:{
