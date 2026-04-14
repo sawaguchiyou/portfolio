@@ -312,7 +312,8 @@ function Surface({t,onClickHere,showBtn,rodOut,lineY,birds,skyState,uiVisible}){
         h('rect',{x:0,y:0,width:680,height:260,fill:'white'}),
         h('circle',{cx:skyState.moonX+6,cy:skyState.moonY-3,r:13,fill:'black'})
       ),
-      h('circle',{cx:skyState.moonX,cy:skyState.moonY,r:16,fill:'rgba(245,238,209,.95)',opacity:skyState.moonOpacity,mask:'url(#moonCrescentMask)'}),
+      h('circle',{cx:skyState.moonX,cy:skyState.moonY,r:27,fill:'url(#moonHaloGradient)',opacity:skyState.moonOpacity*0.95}),
+      h('circle',{cx:skyState.moonX,cy:skyState.moonY,r:16,fill:'rgba(246,214,122,.98)',opacity:skyState.moonOpacity,mask:'url(#moonCrescentMask)'}),
       ...STAR_FIELD.map((s,i)=>h('circle',{key:`star-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.92)',opacity:skyState.starOpacity*(0.75+0.25*Math.sin(t*1.5+i))})),
       ...STAR_FIELD_MID.map((s,i)=>h('circle',{key:`star-mid-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.9)',opacity:skyState.starOpacity*(0.58+0.2*Math.sin(t*1.2+i*0.7))})),
       ...STAR_FIELD_LOW.map((s,i)=>h('circle',{key:`star-low-${i}`,cx:s.x,cy:s.y,r:s.r,fill:'rgba(236,244,255,.86)',opacity:skyState.starOpacity*(0.42+0.16*Math.sin(t*1.1+i*0.65))})),
@@ -843,6 +844,12 @@ function Underwater({t,fishVisible,onFish,hookY,caughtFish,isReeling}){
           h('stop',{offset:'0%','stop-color':'#f6dfae','stop-opacity':String(skyState.haloOpacity||0)}),
           h('stop',{offset:'55%','stop-color':'#f0d4a0','stop-opacity':String((skyState.haloOpacity||0)*0.46)}),
           h('stop',{offset:'100%','stop-color':'#f0d4a0','stop-opacity':'0'})
+        ),
+        h('radialGradient',{id:'moonHaloGradient',gradientUnits:'userSpaceOnUse',cx:String(skyState.moonX??520),cy:String(skyState.moonY??110),r:'30'},
+          h('stop',{offset:'0%','stop-color':'#ffe7a3','stop-opacity':'0.30'}),
+          h('stop',{offset:'46%','stop-color':'#f7cf80','stop-opacity':'0.12'}),
+          h('stop',{offset:'78%','stop-color':'#f6c86e','stop-opacity':'0.04'}),
+          h('stop',{offset:'100%','stop-color':'#f6c86e','stop-opacity':'0'})
         ),
         h('linearGradient',{id:'startButtonGlass',x1:'0%',y1:'0%',x2:'0%',y2:'100%'},
           h('stop',{offset:'0%','stop-color':'rgba(255,255,255,0.16)'}),
